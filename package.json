@@ -1,16 +1,16 @@
 {
-  "name": "tableplus2",
-  "title": "TablePlus2",
-  "description": "",
-  "icon": "command-icon.png",
+  "name": "tableplus",
+  "title": "TablePlus",
+  "description": "Open databases in TablePlus",
+  "icon": "icon.png",
   "author": "pernielsentikaer",
   "license": "MIT",
   "commands": [
     {
-      "name": "database",
-      "title": "Database",
-      "subtitle": "",
-      "description": "",
+      "name": "database_list",
+      "title": "Tableplus",
+      "subtitle": "TablePlus",
+      "description": "List all databases",
       "mode": "view"
     }
   ],
