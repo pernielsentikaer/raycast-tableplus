@@ -11,8 +11,6 @@ export default function DatabaseList() {
 
 	const [state, setState] = useState<{ connections: Group[] }>({connections: []});
 
-	//TODO: Empty state flicker!
-
 	useEffect(() => {
 
 		async function fetch() {
