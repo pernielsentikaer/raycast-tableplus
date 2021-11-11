@@ -1,7 +1,6 @@
 import {Color} from "@raycast/api";
 
 export type Connection = {
-	type: 'connection';
 	id: string
 	groupId: string
 	groupName: string
@@ -13,16 +12,14 @@ export type Connection = {
 	DatabaseHost: string
 	database: string
 	Driver: string
-	Enviroment: string | "local" | "development" | "testing" | "staging" | "production"
+	Environment: string | "local" | "development" | "testing" | "staging" | "production"
 };
 
 export type Group = {
-	type: 'group';
 	id: string,
 	name: string,
 	connections: Connection[]
 }
 
-export type ListItem = Connection | Group;
-
-export const tintColors = { "local": Color.Green, "development": Color.Blue, "testing": Color.Purple, "staging": Color.Orange, "production": Color.Red };
+type Environment = Connection['Environment']
+export const tintColors: {[key: Environment]: Color} = { "local": Color.Green, "development": Color.Blue, "testing": Color.Purple, "staging": Color.Orange, "production": Color.Red };
