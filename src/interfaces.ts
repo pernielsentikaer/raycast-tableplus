@@ -13,7 +13,7 @@ export type Connection = {
 	DatabaseHost: string
 	database: string
 	Driver: string
-	Enviroment: string
+	Enviroment: string | "local" | "development" | "testing" | "staging" | "production"
 };
 
 export type Group = {

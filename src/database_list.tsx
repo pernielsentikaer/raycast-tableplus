@@ -8,6 +8,7 @@ import {Connection, Group, ListItem, tintColors} from "./interfaces";
 export default function DatabaseList() {
 
 	const [state, setState] = useState<ListItem[]>();
+	const [stateSingle, setStateSingle] = useState<ListItem[]>();
 	const [isLoading, setLoading] = useState<boolean>();
 
 	//TODO: Empty state flicker!
@@ -26,6 +27,36 @@ export default function DatabaseList() {
 			const groups = new Map<string, Group>(groupList.map((group) => {
 				return [group.ID.toString(), {type: 'group', id: group.ID.toString(), name: group.Name.toString(), connections: []}];
 			}))
+
+			const listItemsSingle = connectionsList.reduce((memo, connection) => {
+				const groupId = connection.GroupID.toString();
+				const group = groups.get(groupId);
+
+				const conn: Connection = {
+					type: 'connection',
+					id: connection.ID.toString(),
+					groupId: connection.GroupID?.toString(),
+					groupName: '',
+					name: connection.ConnectionName.toString() ?? '',
+					driver: connection.Driver.toString(),
+					isSocket: connection.isUseSocket === 1,
+					isOverSSH: connection.isOverSSH === 1,
+					database: connection.DatabaseName.toString(),
+					ServerAddress: connection.ServerAddress.toString(),
+					DatabaseHost: connection.DatabaseHost.toString(),
+					Driver: connection.Driver.toString(),
+					Enviroment: connection.Enviroment.toString(),
+				};
+
+				if(connection.GroupID.toString() === "") {
+
+						return [...memo, conn];
+
+				}
+				else
+					return [...memo]
+
+			}, [] as ListItem[]);
 
 			const listItems = connectionsList.reduce((memo, connection) => {
 				const groupId = connection.GroupID.toString();
@@ -47,21 +78,27 @@ export default function DatabaseList() {
 					Enviroment: connection.Enviroment.toString(),
 				};
 
-				if (group === undefined) {
-					return [...memo, conn];
-				} else {
-					group.connections.push(conn)
-					if (memo.find((group) => group.type === 'group' && group.id === groupId)) {
-						return memo;
+				if(connection.GroupID.toString() !== "") {
+
+					if (group === undefined) {
+						return [...memo, conn];
 					} else {
-						return [...memo, group];
+						group.connections.push(conn)
+						if (memo.find((group) => group.type === 'group' && group.id === groupId)) {
+							return memo;
+						} else {
+							return [...memo, group];
+						}
 					}
 				}
+				else
+					return [...memo]
 
 			}, [] as ListItem[]);
 
 			setLoading(false);
 			setState(listItems);
+			setStateSingle(listItemsSingle);
 		}
 
 		fetch();
@@ -74,7 +111,7 @@ export default function DatabaseList() {
 			{state && state.map((item) => {
 				if (item.type !== 'connection') {
 
-					const subtitle = `${item.connections.length} item${item.connections.length > 1 ? 's' : ''}`;
+					const subtitle = `${item.connections.length} ${renderPluralIfNeeded(item.connections.length)}`;
 
 					return <List.Section key={item.id} title={item.name} subtitle={subtitle}>
 						{item.connections.map((connection) => (
@@ -86,9 +123,11 @@ export default function DatabaseList() {
 			})}
 
 			{/* TODO: WRONG WAY BUT DOES WHAT I WANT */}
+			{/* TODO: ONLY SHOW IF NEEDED */}
 			{/* TODO: Count items? */}
-			<List.Section key="Ungrouped" title="Ungrouped" subtitle="">
-				{state && state.map((item) => {
+
+			<List.Section key="Ungrouped" title="Ungrouped" subtitle={stateSingle?.length + " " + renderPluralIfNeeded(stateSingle?.length)}>
+				{stateSingle && stateSingle.map((item) => {
 
 					if (item.type === 'connection') {
 
@@ -103,6 +142,10 @@ export default function DatabaseList() {
 
 		</List>
 	);
+
+	function renderPluralIfNeeded(itemsLength: number) {
+		return `item${itemsLength > 1 ? 's' : ''}`;
+	}
 
 	function ConnectionListItem(props: { connection: Connection }) {
 		const connection = props.connection;
@@ -120,7 +163,7 @@ export default function DatabaseList() {
 			}
 		}
 
-		//TODO tintColor in icon may be wrong initialized
+		//TODO tintColor in icon may be wrong initialized - only show when added
 
 		return (
 			<List.Item
