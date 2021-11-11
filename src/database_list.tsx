@@ -1,16 +1,19 @@
-import {ActionPanel, List, OpenInBrowserAction} from "@raycast/api";
+import {ActionPanel, Color, Icon, List, OpenInBrowserAction} from "@raycast/api";
 import plist from "plist";
 import fs from "fs";
 import os from "os";
 import {useEffect, useState} from "react";
-import {Connection, Group, ListItem} from "./interfaces";
+import {Connection, Group, ListItem, tintColors} from "./interfaces";
 
 export default function DatabaseList() {
 
 	const [state, setState] = useState<ListItem[]>();
 	const [isLoading, setLoading] = useState<boolean>();
 
+	//TODO: Empty state flicker!
+
 	useEffect(() => {
+
 		async function fetch() {
 			setLoading(true);
 
@@ -25,10 +28,10 @@ export default function DatabaseList() {
 			}))
 
 			const listItems = connectionsList.reduce((memo, connection) => {
-				let groupId = connection.GroupID.toString();
-				let group = groups.get(groupId);
+				const groupId = connection.GroupID.toString();
+				const group = groups.get(groupId);
 
-				let conn: Connection = {
+				const conn: Connection = {
 					type: 'connection',
 					id: connection.ID.toString(),
 					groupId: connection.GroupID?.toString(),
@@ -44,8 +47,6 @@ export default function DatabaseList() {
 					Enviroment: connection.Enviroment.toString(),
 				};
 
-				console.log(memo)
-
 				if (group === undefined) {
 					return [...memo, conn];
 				} else {
@@ -57,8 +58,6 @@ export default function DatabaseList() {
 					}
 				}
 
-
-
 			}, [] as ListItem[]);
 
 			setLoading(false);
@@ -66,41 +65,62 @@ export default function DatabaseList() {
 		}
 
 		fetch();
+
 	}, []);
 
 	return (
 		<List isLoading={isLoading} searchBarPlaceholder="Filter connections...">
-			{state && state.map((item) => {
-				if (item.type === 'connection') {
-					return <ConnectionListItem key={item.id} connection={item}/>
-				} else {
 
-					const subtitle = `${item.connections.length} items`;
+			{state && state.map((item) => {
+				if (item.type !== 'connection') {
+
+					const subtitle = `${item.connections.length} item${item.connections.length > 1 ? 's' : ''}`;
 
 					return <List.Section key={item.id} title={item.name} subtitle={subtitle}>
 						{item.connections.map((connection) => (
-							<ConnectionListItem key={connection.id} connection={connection} />
+							<ConnectionListItem key={connection.id} connection={connection}/>
 						))}
 					</List.Section>
+
 				}
 			})}
+
+			{/* TODO: WRONG WAY BUT DOES WHAT I WANT */}
+			{/* TODO: Count items? */}
+			<List.Section key="Ungrouped" title="Ungrouped" subtitle="">
+				{state && state.map((item) => {
+
+					if (item.type === 'connection') {
+
+						console.log(item)
+
+						return <ConnectionListItem key={item.id} connection={item}/>
+
+					}
+
+				})}
+			</List.Section>
+
 		</List>
 	);
 
 	function ConnectionListItem(props: { connection: Connection }) {
 		const connection = props.connection;
 
-		let subtitle = connection.isOverSSH ? 'SSH': connection.isSocket ? 'SOCKET' : connection.DatabaseHost;
-		if(connection.database)
+		let subtitle = connection.isOverSSH ? 'SSH' : connection.isSocket ? 'SOCKET' : connection.DatabaseHost;
+		if (connection.database && connection.Driver !== 'SQLite')
 			subtitle += ` : ${connection.database}`;
+		else if(connection.Driver === 'SQLite' && connection.isOverSSH)
+			subtitle += ` : ${connection.DatabaseHost}`;
 
-		let assIcon = 'icon.png';
-		const icon = `${connection.Enviroment}.png`
-		if(connection.groupId) {
-			if(fs.existsSync(`${os.homedir()}/Library/Application Support/com.tinyapp.TablePlus/Data/${connection.groupId}`)) {
-				assIcon = `${os.homedir()}/Library/Application Support/com.tinyapp.TablePlus/Data/${connection.groupId}`
+		let groupIcon = 'icon.png';
+		if (connection.groupId) {
+			if (fs.existsSync(`${os.homedir()}/Library/Application Support/com.tinyapp.TablePlus/Data/${connection.groupId}`)) {
+				groupIcon = `${os.homedir()}/Library/Application Support/com.tinyapp.TablePlus/Data/${connection.groupId}`
 			}
 		}
+
+		//TODO tintColor in icon may be wrong initialized
 
 		return (
 			<List.Item
@@ -108,9 +128,9 @@ export default function DatabaseList() {
 				key={connection.id}
 				title={connection.name}
 				subtitle={subtitle}
-				icon={assIcon}
+				accessoryIcon={groupIcon}
 				accessoryTitle={connection.Driver}
-				accessoryIcon={icon}
+				icon={{source: Icon.Dot, tintColor: tintColors[connection.Enviroment]}}
 				actions={
 					<ActionPanel>
 						<OpenInBrowserAction title="Open Database" url={`tableplus://?id=${connection.id}`}/>
@@ -119,5 +139,4 @@ export default function DatabaseList() {
 			/>
 		);
 	}
-
 }

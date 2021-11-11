@@ -1,3 +1,5 @@
+import {Color} from "@raycast/api";
+
 export type Connection = {
 	type: 'connection';
 	id: string
@@ -22,3 +24,5 @@ export type Group = {
 }
 
 export type ListItem = Connection | Group;
+
+export const tintColors = { "local": Color.Green, "development": Color.Blue, "testing": Color.Purple, "staging": Color.Orange, "production": Color.Red };
