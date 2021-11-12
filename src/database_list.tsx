@@ -15,7 +15,7 @@ const directoryPath = preferences.path ? expandTidle(preferences.path) : `${home
 
 export default function DatabaseList() {
 
-	const [state, setState] = useState<{ isLoading: boolean, connections: Group[] }>({isLoading: true, connections: []});
+	const [state, setState] = useState<{ isLoading: boolean, connections?: Group[] }>({isLoading: true});
 
 	useEffect(() => {
 
@@ -23,17 +23,17 @@ export default function DatabaseList() {
 
 			const tablePlusLocation = `${directoryPath}/Connections.plist`
 			const groupLocations = `${directoryPath}/ConnectionGroups.plist`
-			let groups = new Map
 
 			if (!fs.existsSync(tablePlusLocation)) {
 
 				showToast(ToastStyle.Failure, "Error loading connections", "TablePlus data directory not found, add directory path in preferences")
+				setState({isLoading: false})
 
 			} else {
 				const connectionsList = plist.parse(fs.readFileSync(tablePlusLocation, "utf8")) as ReadonlyArray<plist.PlistObject>
 				const groupList = plist.parse(fs.readFileSync(groupLocations, "utf8")) as ReadonlyArray<plist.PlistObject>
 
-				groups = new Map<string, Group>(groupList.map((group) =>
+				let groups = new Map<string, Group>(groupList.map((group) =>
 					[group.ID.toString(), {id: group.ID.toString(), name: group.Name.toString(), connections: []}]
 				))
 
@@ -62,14 +62,9 @@ export default function DatabaseList() {
 
 					groups.get(groupId)?.connections.push(conn)
 				});
+
+				setState({isLoading: false, connections: Array.from(groups.values())});
 			}
-
-			setState((oldState) => ({
-				...oldState,
-				isLoading: false,
-				connections: Array.from(groups.values())
-			}))
-
 		}
 
 		fetch()
@@ -78,7 +73,7 @@ export default function DatabaseList() {
 
 	return (
 		<List isLoading={state.isLoading} searchBarPlaceholder="Filter connections...">
-			{state && state.connections.map((item) => {
+			{state && state.connections?.map((item) => {
 				const subtitle = `${item.connections.length} ${renderPluralIfNeeded(item.connections.length)}`
 
 				return <List.Section key={item.id} title={item.name} subtitle={subtitle}>
