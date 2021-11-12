@@ -1,72 +1,85 @@
-import {ActionPanel, Icon, List, OpenInBrowserAction} from "@raycast/api";
+import {ActionPanel, Icon, List, OpenInBrowserAction, showToast, ToastStyle, getPreferenceValues} from "@raycast/api";
 import plist from "plist";
 import fs from "fs";
-import os from "os";
-import {useEffect, useState} from "react";
-import {Connection, Group, tintColors} from "./interfaces";
+import {homedir} from "os";
 
-const EmptyGroupID = '__EMPTY__';
+// @ts-ignore
+import expandTidle from "expand-tilde";
+
+import {useEffect, useState} from "react";
+import {Connection, Group, tintColors, Preferences} from "./interfaces";
+
+const EmptyGroupID = "__EMPTY__";
+const preferences: Preferences = getPreferenceValues();
+const directoryPath = preferences.path ? expandTidle(preferences.path) : `${homedir()}/Library/Application Support/com.tinyapp.TablePlus/Data/`
 
 export default function DatabaseList() {
 
-	const [state, setState] = useState<{ connections: Group[] }>({connections: []});
+	const [state, setState] = useState<{ isLoading: boolean, connections: Group[] }>({isLoading: true, connections: []});
 
 	useEffect(() => {
 
 		async function fetch() {
 
-			const tablePlusLocation = `${os.homedir()}/Library/Application Support/com.tinyapp.TablePlus/Data/Connections.plist`;
-			const groupLocations = `${os.homedir()}/Library/Application Support/com.tinyapp.TablePlus/Data/ConnectionGroups.plist`;
+			const tablePlusLocation = `${directoryPath}/Connections.plist`
+			const groupLocations = `${directoryPath}/ConnectionGroups.plist`
+			let groups = new Map
 
-			const connectionsList = plist.parse(fs.readFileSync(tablePlusLocation, "utf8")) as ReadonlyArray<plist.PlistObject>;
-			const groupList = plist.parse(fs.readFileSync(groupLocations, "utf8")) as ReadonlyArray<plist.PlistObject>;
+			if (!fs.existsSync(tablePlusLocation)) {
 
-			const groups = new Map<string, Group>(groupList.map((group) =>
-				[group.ID.toString(), {id: group.ID.toString(), name: group.Name.toString(), connections: []}]
-			))
-			groups.set(EmptyGroupID, {
-				id: EmptyGroupID,
-				name: 'Ungrouped',
-				connections: []
-			});
+				showToast(ToastStyle.Failure, "Error loading connections", "TablePlus data directory not found, add directory path in preferences")
 
-			connectionsList.forEach((connection) => {
-				const groupId = connection.GroupID?.toString() !== '' ? connection.GroupID?.toString() : EmptyGroupID;
+			} else {
+				const connectionsList = plist.parse(fs.readFileSync(tablePlusLocation, "utf8")) as ReadonlyArray<plist.PlistObject>
+				const groupList = plist.parse(fs.readFileSync(groupLocations, "utf8")) as ReadonlyArray<plist.PlistObject>
 
-				const conn: Connection = {
-					id: connection.ID.toString(),
-					groupId,
-					groupName: '',
-					name: connection.ConnectionName.toString() ?? '',
-					driver: connection.Driver.toString(),
-					isSocket: connection.isUseSocket === 1,
-					isOverSSH: connection.isOverSSH === 1,
-					database: connection.DatabaseName.toString(),
-					ServerAddress: connection.ServerAddress.toString(),
-					DatabaseHost: connection.DatabaseHost.toString(),
-					Driver: connection.Driver.toString(),
-					Environment: connection.Enviroment.toString(),
-				};
+				groups = new Map<string, Group>(groupList.map((group) =>
+					[group.ID.toString(), {id: group.ID.toString(), name: group.Name.toString(), connections: []}]
+				))
 
-				groups.get(groupId)?.connections.push(conn);
-			});
+				groups.set(EmptyGroupID, {
+					id: EmptyGroupID,
+					name: "Ungrouped",
+					connections: []
+				})
+
+				connectionsList.forEach((connection) => {
+					const groupId = connection.GroupID?.toString() !== "" ? connection.GroupID?.toString() : EmptyGroupID
+
+					const conn: Connection = {
+						id: connection.ID.toString(),
+						groupId,
+						name: connection.ConnectionName.toString() ?? "",
+						driver: connection.Driver.toString(),
+						isSocket: connection.isUseSocket === 1,
+						isOverSSH: connection.isOverSSH === 1,
+						database: connection.DatabaseName.toString(),
+						ServerAddress: connection.ServerAddress.toString(),
+						DatabaseHost: connection.DatabaseHost.toString(),
+						Driver: connection.Driver.toString(),
+						Environment: connection.Enviroment.toString(),
+					}
+
+					groups.get(groupId)?.connections.push(conn)
+				});
+			}
 
 			setState((oldState) => ({
 				...oldState,
-				connections: Array.from(groups.values()),
+				isLoading: false,
+				connections: Array.from(groups.values())
 			}))
 
 		}
 
-		fetch();
-	}, []);
+		fetch()
 
-	console.log(state.connections)
+	}, [])
 
 	return (
-		<List isLoading={state.connections.length === 0} searchBarPlaceholder="Filter connections...">
+		<List isLoading={state.isLoading} searchBarPlaceholder="Filter connections...">
 			{state && state.connections.map((item) => {
-				const subtitle = `${item.connections.length} ${renderPluralIfNeeded(item.connections.length)}`;
+				const subtitle = `${item.connections.length} ${renderPluralIfNeeded(item.connections.length)}`
 
 				return <List.Section key={item.id} title={item.name} subtitle={subtitle}>
 					{item.connections.map((connection) => (
@@ -78,22 +91,23 @@ export default function DatabaseList() {
 	);
 
 	function renderPluralIfNeeded(itemsLength: number) {
-		return `item${itemsLength > 1 ? 's' : ''}`;
+		return `item${itemsLength > 1 ? "s" : ""}`
 	}
 
 	function ConnectionListItem(props: { connection: Connection }) {
-		const connection = props.connection;
+		const connection = props.connection
 
-		let subtitle = connection.isOverSSH ? 'SSH' : connection.isSocket ? 'SOCKET' : connection.DatabaseHost;
-		if (connection.database && connection.Driver !== 'SQLite')
-			subtitle += ` : ${connection.database}`;
-		else if (connection.Driver === 'SQLite' && connection.isOverSSH)
-			subtitle += ` : ${connection.DatabaseHost}`;
+		let subtitle = connection.isOverSSH ? "SSH" : connection.isSocket ? "SOCKET" : connection.DatabaseHost
+		if (connection.database && connection.Driver !== "SQLite") {
+			subtitle += ` : ${connection.database}`
+		} else if (connection.Driver === "SQLite" && connection.isOverSSH) {
+			subtitle += ` : ${connection.DatabaseHost}`
+		}
 
-		let groupIcon = 'icon.png';
+		let groupIcon = "icon.png"
 		if (connection.groupId) {
-			if (fs.existsSync(`${os.homedir()}/Library/Application Support/com.tinyapp.TablePlus/Data/${connection.groupId}`)) {
-				groupIcon = `${os.homedir()}/Library/Application Support/com.tinyapp.TablePlus/Data/${connection.groupId}`
+			if (fs.existsSync(`${directoryPath}/${connection.groupId}`)) {
+				groupIcon = `${directoryPath}/${connection.groupId}`
 			}
 		}
 

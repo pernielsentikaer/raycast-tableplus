@@ -3,7 +3,6 @@ import {Color} from "@raycast/api";
 export type Connection = {
 	id: string
 	groupId: string
-	groupName: string
 	driver: string
 	name: string
 	isSocket: boolean
@@ -19,6 +18,10 @@ export type Group = {
 	id: string,
 	name: string,
 	connections: Connection[]
+}
+
+export interface Preferences {
+	path?: string;
 }
 
 type Environment = Connection['Environment']
